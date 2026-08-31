@@ -1,0 +1,1101 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Mini Crypto Wallet - Wallet Service",
+        "description": "\nOwns users, wallets, the ledger and balances. It is the only service that knows\nwhat anyone is owed.\n\nIt never talks to a blockchain. Deposits arrive as `deposit.confirmed` events;\ntransfers are published as `transfer.requested` and settled when\n`blockchain.transaction.confirmed` comes back.\n\n**Authentication** -- every endpoint requires `X-API-Key` (or\n`Authorization: Bearer <key>`). This stands in for real OAuth2/JWT; see the\nREADME.\n\n**Money format** -- all amounts are decimal strings (`\"250.000000\"`), never JSON\nnumbers.\n",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/health/live": {
+            "get": {
+                "tags": [
+                    "ops"
+                ],
+                "summary": "Liveness probe",
+                "operationId": "live_health_live_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    },
+                                    "type": "object",
+                                    "title": "Response Live Health Live Get"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "tags": [
+                    "ops"
+                ],
+                "summary": "Readiness probe",
+                "operationId": "ready_health_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "post": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "Create a user",
+                "operationId": "create_user_users_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{user_id}": {
+            "get": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "Fetch a user",
+                "operationId": "get_user_users__user_id__get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "User Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{user_id}/wallet": {
+            "post": {
+                "tags": [
+                    "wallets"
+                ],
+                "summary": "Create the user's blockchain wallet",
+                "description": "Asks blockchain-service for a custody address and records it. Idempotent: calling it again returns the existing wallet with 200.",
+                "operationId": "create_wallet_users__user_id__wallet_post",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "User Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateWalletRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WalletResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "wallets"
+                ],
+                "summary": "Fetch the user's wallet",
+                "operationId": "get_wallet_users__user_id__wallet_get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "User Id"
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Network"
+                        }
+                    },
+                    {
+                        "name": "asset",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Asset"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WalletResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{user_id}/balance": {
+            "get": {
+                "tags": [
+                    "balances"
+                ],
+                "summary": "Current balance",
+                "description": "`available` = `posted` - `reserved`. Only `available` is spendable.",
+                "operationId": "get_balance_users__user_id__balance_get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "User Id"
+                        }
+                    },
+                    {
+                        "name": "asset",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Asset"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BalanceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/transfers": {
+            "post": {
+                "tags": [
+                    "transfers"
+                ],
+                "summary": "Request a transfer between two users",
+                "description": "Accepted synchronously: the funds are held and the on-chain request is queued. Settlement is asynchronous -- poll `GET /transfers/{id}` or watch for status `CONFIRMED`.\n\n`idempotency_key` is mandatory. Replaying a key returns the original transfer (with `Idempotent-Replay: true`), never a second one.",
+                "operationId": "post_transfer_transfers_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTransferRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransferResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Insufficient funds, or idempotency key reused with a different body."
+                    },
+                    "422": {
+                        "description": "Validation failed."
+                    }
+                }
+            }
+        },
+        "/transfers/{transfer_id}": {
+            "get": {
+                "tags": [
+                    "transfers"
+                ],
+                "summary": "Transfer status",
+                "operationId": "get_transfer_transfers__transfer_id__get",
+                "parameters": [
+                    {
+                        "name": "transfer_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Transfer Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransferResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{user_id}/transactions": {
+            "get": {
+                "tags": [
+                    "transactions"
+                ],
+                "summary": "Ledger history",
+                "description": "Append-only ledger entries, newest first, plus any transfers that are still in flight.",
+                "operationId": "get_transactions_users__user_id__transactions_get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "User Id"
+                        }
+                    },
+                    {
+                        "name": "asset",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Asset"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 200,
+                            "minimum": 1,
+                            "default": 50,
+                            "title": "Limit"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Return entries with id < cursor.",
+                            "title": "Cursor"
+                        },
+                        "description": "Return entries with id < cursor."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransactionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reconciliation": {
+            "get": {
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Balance snapshots vs. the ledger",
+                "description": "Recomputes every balance from the ledger and reports drift. In production this runs on a schedule and alerts on any row.",
+                "operationId": "reconciliation_admin_reconciliation_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReconciliationResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BalanceResponse": {
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "title": "User Id"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "posted": {
+                        "type": "string",
+                        "title": "Posted"
+                    },
+                    "reserved": {
+                        "type": "string",
+                        "title": "Reserved"
+                    },
+                    "available": {
+                        "type": "string",
+                        "title": "Available"
+                    },
+                    "decimals": {
+                        "type": "integer",
+                        "title": "Decimals"
+                    },
+                    "updated_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "asset",
+                    "posted",
+                    "reserved",
+                    "available",
+                    "decimals"
+                ],
+                "title": "BalanceResponse"
+            },
+            "CreateTransferRequest": {
+                "properties": {
+                    "from_user_id": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "From User Id"
+                    },
+                    "to_user_id": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "To User Id"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "maxLength": 16,
+                        "title": "Asset",
+                        "default": "USDT"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "pattern": "^\\d{1,30}(\\.\\d{1,18})?$",
+                        "title": "Amount",
+                        "examples": [
+                            "250.000000"
+                        ]
+                    },
+                    "idempotency_key": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 4,
+                        "pattern": "^[A-Za-z0-9._:-]+$",
+                        "title": "Idempotency Key",
+                        "description": "Replaying this key returns the original result instead of creating a second transfer.",
+                        "examples": [
+                            "transfer-001"
+                        ]
+                    },
+                    "network": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Network"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "from_user_id",
+                    "to_user_id",
+                    "amount",
+                    "idempotency_key"
+                ],
+                "title": "CreateTransferRequest",
+                "example": {
+                    "amount": "250.000000",
+                    "asset": "USDT",
+                    "from_user_id": 1,
+                    "idempotency_key": "transfer-001",
+                    "to_user_id": 2
+                }
+            },
+            "CreateUserRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "title": "Name",
+                        "examples": [
+                            "User A"
+                        ]
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "title": "Email",
+                        "examples": [
+                            "user-a@example.com"
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "email"
+                ],
+                "title": "CreateUserRequest"
+            },
+            "CreateWalletRequest": {
+                "properties": {
+                    "network": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Network",
+                        "examples": [
+                            "BSC"
+                        ]
+                    },
+                    "asset": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Asset",
+                        "examples": [
+                            "USDT"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "CreateWalletRequest"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "LedgerEntryResponse": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "entry_id": {
+                        "type": "string",
+                        "title": "Entry Id"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount"
+                    },
+                    "entry_type": {
+                        "type": "string",
+                        "title": "Entry Type"
+                    },
+                    "reference_type": {
+                        "type": "string",
+                        "title": "Reference Type"
+                    },
+                    "reference_id": {
+                        "type": "string",
+                        "title": "Reference Id"
+                    },
+                    "correlation_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Correlation Id"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "entry_id",
+                    "asset",
+                    "amount",
+                    "entry_type",
+                    "reference_type",
+                    "reference_id",
+                    "created_at"
+                ],
+                "title": "LedgerEntryResponse"
+            },
+            "ReconciliationResponse": {
+                "properties": {
+                    "checked": {
+                        "type": "integer",
+                        "title": "Checked"
+                    },
+                    "inconsistent": {
+                        "type": "integer",
+                        "title": "Inconsistent"
+                    },
+                    "rows": {
+                        "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "title": "Rows"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "checked",
+                    "inconsistent",
+                    "rows"
+                ],
+                "title": "ReconciliationResponse"
+            },
+            "TransactionsResponse": {
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "title": "User Id"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/LedgerEntryResponse"
+                        },
+                        "type": "array",
+                        "title": "Items"
+                    },
+                    "pending_transfers": {
+                        "items": {
+                            "$ref": "#/components/schemas/TransferResponse"
+                        },
+                        "type": "array",
+                        "title": "Pending Transfers"
+                    },
+                    "next_cursor": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Next Cursor"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "asset",
+                    "items",
+                    "pending_transfers"
+                ],
+                "title": "TransactionsResponse"
+            },
+            "TransferResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    },
+                    "idempotency_key": {
+                        "type": "string",
+                        "title": "Idempotency Key"
+                    },
+                    "from_user_id": {
+                        "type": "integer",
+                        "title": "From User Id"
+                    },
+                    "to_user_id": {
+                        "type": "integer",
+                        "title": "To User Id"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "tx_hash": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tx Hash"
+                    },
+                    "failure_code": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Failure Code"
+                    },
+                    "failure_reason": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Failure Reason"
+                    },
+                    "correlation_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Correlation Id"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Updated At"
+                    },
+                    "settled_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Settled At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "idempotency_key",
+                    "from_user_id",
+                    "to_user_id",
+                    "asset",
+                    "network",
+                    "amount",
+                    "status",
+                    "created_at",
+                    "updated_at"
+                ],
+                "title": "TransferResponse"
+            },
+            "UserResponse": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "email": {
+                        "type": "string",
+                        "title": "Email"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "email",
+                    "status",
+                    "created_at"
+                ],
+                "title": "UserResponse"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            },
+            "WalletResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    },
+                    "user_id": {
+                        "type": "integer",
+                        "title": "User Id"
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "address": {
+                        "type": "string",
+                        "title": "Address"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "user_id",
+                    "network",
+                    "asset",
+                    "address",
+                    "status",
+                    "created_at"
+                ],
+                "title": "WalletResponse"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "users",
+            "description": "User management."
+        },
+        {
+            "name": "wallets",
+            "description": "Wallet/address assignment."
+        },
+        {
+            "name": "balances",
+            "description": "Posted, reserved and available balances."
+        },
+        {
+            "name": "transfers",
+            "description": "User-to-user transfers, settled on chain."
+        },
+        {
+            "name": "transactions",
+            "description": "Append-only ledger history."
+        },
+        {
+            "name": "admin",
+            "description": "Reconciliation and operational views."
+        },
+        {
+            "name": "ops",
+            "description": "Health and metrics."
+        }
+    ]
+}

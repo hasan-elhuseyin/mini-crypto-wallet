@@ -1,0 +1,18 @@
+# Runtime dependencies (shared by both services -- one image, two entrypoints).
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.7,<3.0
+pydantic-settings>=2.3,<3.0
+email-validator>=2.1
+SQLAlchemy[asyncio]>=2.0.30,<2.1
+psycopg[binary,pool]>=3.1,<4.0
+alembic>=1.13,<2.0
+redis>=5.0,<6.0
+structlog>=24.1
+prometheus-client>=0.20
+httpx>=0.27,<1.0
+cryptography>=42.0
+# Real secp256k1 keypairs and EVM transaction signing.
+eth-account>=0.13,<0.15
+# Only imported when CHAIN_BACKEND=web3.
+web3>=7.0,<8.0

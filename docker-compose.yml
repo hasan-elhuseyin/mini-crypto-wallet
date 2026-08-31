@@ -1,0 +1,208 @@
+# `docker compose up` brings up the whole platform:
+#   postgres, redis, two migration jobs, and four application processes.
+#
+# API and worker are separate containers on purpose: request latency must not
+# depend on chain polling, and the two scale differently.
+
+name: mini-crypto-wallet
+
+x-app-env: &app-env
+  WALLET_DATABASE_URL: ${WALLET_DATABASE_URL:-postgresql+psycopg://mcw:mcw@postgres:5432/wallet}
+  BLOCKCHAIN_DATABASE_URL: ${BLOCKCHAIN_DATABASE_URL:-postgresql+psycopg://mcw:mcw@postgres:5432/blockchain}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  BLOCKCHAIN_SERVICE_URL: ${BLOCKCHAIN_SERVICE_URL:-http://blockchain-api:8000}
+  AUTH_ENABLED: ${AUTH_ENABLED:-true}
+  API_KEY: ${API_KEY:-dev-api-key-change-me}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+  KEYSTORE_ENCRYPTION_KEY: ${KEYSTORE_ENCRYPTION_KEY:-AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}
+  CHAIN_BACKEND: ${CHAIN_BACKEND:-mock}
+  CHAIN_NETWORK: ${CHAIN_NETWORK:-BSC}
+  CONFIRMATIONS_REQUIRED: ${CONFIRMATIONS_REQUIRED:-3}
+  FINALITY_DEPTH: ${FINALITY_DEPTH:-15}
+  MOCK_BLOCK_TIME_SECONDS: ${MOCK_BLOCK_TIME_SECONDS:-1.0}
+  MOCK_AUTO_MINE: ${MOCK_AUTO_MINE:-true}
+  WEB3_RPC_URL: ${WEB3_RPC_URL:-http://anvil:8545}
+  WEB3_CHAIN_ID: ${WEB3_CHAIN_ID:-31337}
+  USDT_CONTRACT_ADDRESS: ${USDT_CONTRACT_ADDRESS:-0x55d398326f99059fF775485246999027B3197955}
+  WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-1.0}
+  BROADCAST_MAX_ATTEMPTS: ${BROADCAST_MAX_ATTEMPTS:-5}
+  PENDING_TIMEOUT_SECONDS: ${PENDING_TIMEOUT_SECONDS:-120}
+  CONSUMER_MAX_DELIVERY: ${CONSUMER_MAX_DELIVERY:-5}
+  CONSUMER_CLAIM_IDLE_MS: ${CONSUMER_CLAIM_IDLE_MS:-15000}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON: ${LOG_JSON:-true}
+  ENABLE_SIMULATION_API: ${ENABLE_SIMULATION_API:-true}
+
+x-app-base: &app-base
+  build:
+    context: .
+  image: mini-crypto-wallet:local
+  environment: *app-env
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mcw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mcw}
+      POSTGRES_DB: ${POSTGRES_DB:-mcw}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres-init.sql:/docker-entrypoint-initdb.d/10-databases.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mcw} -d ${POSTGRES_DB:-mcw}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # --- migrations (run to completion before the apps start) ----------------
+  wallet-migrate:
+    <<: *app-base
+    restart: "no"
+    working_dir: /srv/services/wallet
+    command: ["alembic", "upgrade", "head"]
+
+  blockchain-migrate:
+    <<: *app-base
+    restart: "no"
+    working_dir: /srv/services/blockchain
+    command: ["alembic", "upgrade", "head"]
+
+  # --- wallet-service ------------------------------------------------------
+  wallet-api:
+    <<: *app-base
+    working_dir: /srv/services/wallet
+    command: ["uvicorn", "wallet_service.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--no-access-log", "--proxy-headers"]
+    ports:
+      - "${WALLET_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      wallet-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  wallet-worker:
+    <<: *app-base
+    working_dir: /srv/services/wallet
+    command: ["python", "-m", "wallet_service.worker"]
+    environment:
+      <<: *app-env
+      CONSUMER_NAME: wallet-worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      wallet-migrate:
+        condition: service_completed_successfully
+
+  # --- blockchain-service --------------------------------------------------
+  blockchain-api:
+    <<: *app-base
+    working_dir: /srv/services/blockchain
+    command: ["uvicorn", "blockchain_service.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--no-access-log", "--proxy-headers"]
+    ports:
+      - "${BLOCKCHAIN_PORT:-8001}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      blockchain-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  blockchain-worker:
+    <<: *app-base
+    working_dir: /srv/services/blockchain
+    command: ["python", "-m", "blockchain_service.worker"]
+    environment:
+      <<: *app-env
+      CONSUMER_NAME: blockchain-worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      blockchain-migrate:
+        condition: service_completed_successfully
+
+  # --- test runner (profile: test) ----------------------------------------
+  # `docker compose --profile test run --rm tests`
+  tests:
+    <<: *app-base
+    profiles: ["test"]
+    restart: "no"
+    working_dir: /srv
+    environment:
+      <<: *app-env
+      WALLET_DATABASE_URL: postgresql+psycopg://mcw:mcw@postgres:5432/wallet_test
+      BLOCKCHAIN_DATABASE_URL: postgresql+psycopg://mcw:mcw@postgres:5432/blockchain_test
+      REDIS_URL: redis://redis:6379/1
+      AUTH_ENABLED: "true"
+      # Tests drive the workers themselves and assert on retry budgets, so the
+      # timing knobs are pinned here rather than inherited from .env.
+      MOCK_AUTO_MINE: "false"
+      CONFIRMATIONS_REQUIRED: "3"
+      FINALITY_DEPTH: "15"
+      BROADCAST_MAX_ATTEMPTS: "3"
+      PENDING_TIMEOUT_SECONDS: "1"
+      CONSUMER_MAX_DELIVERY: "3"
+      CONSUMER_CLAIM_IDLE_MS: "50"
+      LOG_LEVEL: WARNING
+    command: ["pytest", "-q"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # --- optional real EVM node (profile: web3) ------------------------------
+  # `docker compose --profile web3 up anvil` then set CHAIN_BACKEND=web3.
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    profiles: ["web3"]
+    entrypoint: ["anvil"]
+    command: ["--host", "0.0.0.0", "--chain-id", "31337", "--block-time", "1"]
+    ports:
+      - "${ANVIL_PORT:-8545}:8545"
+
+volumes:
+  postgres-data:
+  redis-data:

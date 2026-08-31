@@ -1,0 +1,1069 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Mini Crypto Wallet - Blockchain Service",
+        "description": "\nOwns everything that touches the chain: address custody, deposit detection,\nconfirmation tracking, transaction broadcasting and reorg handling.\n\nIt never holds user balances -- those belong to wallet-service. Communication\nis over events (`deposit.*`, `blockchain.transaction.*`) with the single\nexception of address creation, which is a synchronous idempotent call.\n",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/health/live": {
+            "get": {
+                "tags": [
+                    "ops"
+                ],
+                "summary": "Liveness probe",
+                "operationId": "live_health_live_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    },
+                                    "type": "object",
+                                    "title": "Response Live Health Live Get"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "tags": [
+                    "ops"
+                ],
+                "summary": "Readiness probe",
+                "operationId": "ready_health_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/addresses": {
+            "post": {
+                "tags": [
+                    "addresses"
+                ],
+                "summary": "Create (or return) the custody address for an owner",
+                "description": "Idempotent on `owner_ref`: returns 200 when the address already exists.",
+                "operationId": "create_address_addresses_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddressRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddressResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/addresses/{owner_ref}": {
+            "get": {
+                "tags": [
+                    "addresses"
+                ],
+                "summary": "Look up an owner's address",
+                "operationId": "get_address_addresses__owner_ref__get",
+                "parameters": [
+                    {
+                        "name": "owner_ref",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Owner Ref"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddressResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/addresses/{address}/onchain-balance": {
+            "get": {
+                "tags": [
+                    "addresses"
+                ],
+                "summary": "Token balance as seen on chain",
+                "operationId": "onchain_balance_addresses__address__onchain_balance_get",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Address"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BalanceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/deposits": {
+            "get": {
+                "tags": [
+                    "deposits"
+                ],
+                "summary": "List detected deposits",
+                "operationId": "list_deposits_deposits_get",
+                "parameters": [
+                    {
+                        "name": "to_address",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "To Address"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Status"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 200,
+                            "minimum": 1,
+                            "default": 50,
+                            "title": "Limit"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DepositResponse"
+                                    },
+                                    "title": "Response List Deposits Deposits Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/transactions/{transfer_id}": {
+            "get": {
+                "tags": [
+                    "transactions"
+                ],
+                "summary": "On-chain state of a wallet transfer",
+                "operationId": "get_transaction_transactions__transfer_id__get",
+                "parameters": [
+                    {
+                        "name": "transfer_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Transfer Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OutgoingTransactionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chain": {
+            "get": {
+                "tags": [
+                    "chain"
+                ],
+                "summary": "Chain backend state",
+                "operationId": "chain_state_chain_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChainStateResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/simulate/deposits": {
+            "post": {
+                "tags": [
+                    "simulation"
+                ],
+                "summary": "Simulate an inbound USDT deposit from an external party",
+                "operationId": "simulate_deposit_simulate_deposits_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SimulateDepositRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SimulateDepositResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/simulate/mine": {
+            "post": {
+                "tags": [
+                    "simulation"
+                ],
+                "summary": "Mine N blocks",
+                "operationId": "mine_simulate_mine_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MineRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": true,
+                                    "type": "object",
+                                    "title": "Response Mine Simulate Mine Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/simulate/reorg": {
+            "post": {
+                "tags": [
+                    "simulation"
+                ],
+                "summary": "Force a chain reorganisation",
+                "operationId": "reorg_simulate_reorg_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReorgRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": true,
+                                    "type": "object",
+                                    "title": "Response Reorg Simulate Reorg Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/simulate/faults": {
+            "post": {
+                "tags": [
+                    "simulation"
+                ],
+                "summary": "Inject chain faults (RPC down, congestion, reverts)",
+                "operationId": "faults_simulate_faults_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FaultRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": true,
+                                    "type": "object",
+                                    "title": "Response Faults Simulate Faults Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/simulate/tick": {
+            "post": {
+                "tags": [
+                    "simulation"
+                ],
+                "summary": "Run one iteration of every background worker",
+                "description": "Test/demo hook: makes the asynchronous pipeline advance deterministically instead of waiting on timers.",
+                "operationId": "tick_simulate_tick_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": true,
+                                    "type": "object",
+                                    "title": "Response Tick Simulate Tick Post"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "AddressRequest": {
+                "properties": {
+                    "owner_ref": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 3,
+                        "title": "Owner Ref",
+                        "description": "Opaque owner reference from the calling service. Unique -> idempotent.",
+                        "examples": [
+                            "user:1"
+                        ]
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network",
+                        "default": "BSC",
+                        "examples": [
+                            "BSC"
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "owner_ref"
+                ],
+                "title": "AddressRequest"
+            },
+            "AddressResponse": {
+                "properties": {
+                    "owner_ref": {
+                        "type": "string",
+                        "title": "Owner Ref"
+                    },
+                    "address": {
+                        "type": "string",
+                        "title": "Address"
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "owner_ref",
+                    "address",
+                    "network",
+                    "status",
+                    "created_at"
+                ],
+                "title": "AddressResponse"
+            },
+            "BalanceResponse": {
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "title": "Address"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount"
+                    },
+                    "amount_units": {
+                        "type": "string",
+                        "title": "Amount Units"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "address",
+                    "asset",
+                    "amount",
+                    "amount_units"
+                ],
+                "title": "BalanceResponse"
+            },
+            "ChainStateResponse": {
+                "properties": {
+                    "backend": {
+                        "type": "string",
+                        "title": "Backend"
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network"
+                    },
+                    "head_block": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Head Block"
+                    },
+                    "confirmations_required": {
+                        "type": "integer",
+                        "title": "Confirmations Required"
+                    },
+                    "faults": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Faults"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "backend",
+                    "network",
+                    "head_block",
+                    "confirmations_required"
+                ],
+                "title": "ChainStateResponse"
+            },
+            "DepositResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "tx_hash": {
+                        "type": "string",
+                        "title": "Tx Hash"
+                    },
+                    "log_index": {
+                        "type": "integer",
+                        "title": "Log Index"
+                    },
+                    "to_address": {
+                        "type": "string",
+                        "title": "To Address"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount"
+                    },
+                    "amount_units": {
+                        "type": "string",
+                        "title": "Amount Units"
+                    },
+                    "block_number": {
+                        "type": "integer",
+                        "title": "Block Number"
+                    },
+                    "confirmations": {
+                        "type": "integer",
+                        "title": "Confirmations"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "first_seen_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "First Seen At"
+                    },
+                    "confirmed_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Confirmed At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "network",
+                    "asset",
+                    "tx_hash",
+                    "log_index",
+                    "to_address",
+                    "amount",
+                    "amount_units",
+                    "block_number",
+                    "confirmations",
+                    "status",
+                    "first_seen_at"
+                ],
+                "title": "DepositResponse"
+            },
+            "FaultRequest": {
+                "properties": {
+                    "rpc_available": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Rpc Available"
+                    },
+                    "halt_mining": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Halt Mining",
+                        "description": "Blocks keep being produced but nothing gets mined."
+                    },
+                    "fail_next_transfers": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Fail Next Transfers",
+                        "description": "Next N transfers revert on chain (receipt status 0)."
+                    }
+                },
+                "type": "object",
+                "title": "FaultRequest"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "MineRequest": {
+                "properties": {
+                    "blocks": {
+                        "type": "integer",
+                        "maximum": 100.0,
+                        "minimum": 1.0,
+                        "title": "Blocks",
+                        "default": 1
+                    }
+                },
+                "type": "object",
+                "title": "MineRequest"
+            },
+            "OutgoingTransactionResponse": {
+                "properties": {
+                    "transfer_id": {
+                        "type": "string",
+                        "title": "Transfer Id"
+                    },
+                    "network": {
+                        "type": "string",
+                        "title": "Network"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    },
+                    "from_address": {
+                        "type": "string",
+                        "title": "From Address"
+                    },
+                    "to_address": {
+                        "type": "string",
+                        "title": "To Address"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount"
+                    },
+                    "amount_units": {
+                        "type": "string",
+                        "title": "Amount Units"
+                    },
+                    "tx_hash": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tx Hash"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "confirmations": {
+                        "type": "integer",
+                        "title": "Confirmations"
+                    },
+                    "block_number": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Block Number"
+                    },
+                    "failure_reason": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Failure Reason"
+                    },
+                    "attempts": {
+                        "type": "integer",
+                        "title": "Attempts"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "transfer_id",
+                    "network",
+                    "asset",
+                    "from_address",
+                    "to_address",
+                    "amount",
+                    "amount_units",
+                    "tx_hash",
+                    "status",
+                    "confirmations",
+                    "block_number",
+                    "failure_reason",
+                    "attempts",
+                    "created_at"
+                ],
+                "title": "OutgoingTransactionResponse"
+            },
+            "ReorgRequest": {
+                "properties": {
+                    "depth": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Depth",
+                        "default": 2
+                    },
+                    "drop_tx_hashes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Drop Tx Hashes",
+                        "description": "Transactions that must NOT survive the reorg (they vanish)."
+                    }
+                },
+                "type": "object",
+                "title": "ReorgRequest"
+            },
+            "SimulateDepositRequest": {
+                "properties": {
+                    "to_address": {
+                        "type": "string",
+                        "title": "To Address",
+                        "examples": [
+                            "0x1234..."
+                        ]
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount",
+                        "description": "Decimal string; never a float.",
+                        "examples": [
+                            "1000.000000"
+                        ]
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset",
+                        "default": "USDT"
+                    },
+                    "reference": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reference",
+                        "description": "Client reference. Reusing it re-submits the *same* on-chain transaction instead of creating a second deposit."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "to_address",
+                    "amount"
+                ],
+                "title": "SimulateDepositRequest"
+            },
+            "SimulateDepositResponse": {
+                "properties": {
+                    "tx_hash": {
+                        "type": "string",
+                        "title": "Tx Hash"
+                    },
+                    "to_address": {
+                        "type": "string",
+                        "title": "To Address"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "title": "Amount"
+                    },
+                    "amount_units": {
+                        "type": "string",
+                        "title": "Amount Units"
+                    },
+                    "asset": {
+                        "type": "string",
+                        "title": "Asset"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "tx_hash",
+                    "to_address",
+                    "amount",
+                    "amount_units",
+                    "asset"
+                ],
+                "title": "SimulateDepositResponse"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "addresses",
+            "description": "Custody address issuance and lookup."
+        },
+        {
+            "name": "deposits",
+            "description": "Detected inbound transfers."
+        },
+        {
+            "name": "transactions",
+            "description": "Outgoing on-chain transactions."
+        },
+        {
+            "name": "chain",
+            "description": "Chain backend state."
+        },
+        {
+            "name": "simulation",
+            "description": "Drive the simulated chain (non-production)."
+        },
+        {
+            "name": "ops",
+            "description": "Health and metrics."
+        }
+    ]
+}

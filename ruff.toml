@@ -1,0 +1,21 @@
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "migrations/versions"]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "C4",   # comprehensions
+    "SIM",  # simplify
+]
+ignore = [
+    "B008",   # FastAPI's Depends()/Query() defaults are the framework idiom
+    "UP047",  # PEP 695 generics need 3.12; the shared library targets 3.11+
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["E501"]
