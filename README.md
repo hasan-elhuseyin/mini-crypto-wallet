@@ -67,6 +67,19 @@ Every endpoint is authenticated. Use `X-API-Key: dev-api-key-change-me` for
 wallet-service and `X-Internal-Key: dev-internal-key-change-me` for
 blockchain-service (both configurable in `.env`).
 
+### Troubleshooting
+
+**Containers stuck in `Restarting`.** Check whether Postgres and Redis are
+actually up -- `docker compose ps -a`, not `docker ps`, so you can see exited
+containers too. blockchain-service opens its database during startup (it
+initialises the simulated chain), so it exits and restarts until Postgres is
+reachable; that is intended fail-fast behaviour, and it recovers on its own once
+the database returns. Every service carries `restart: unless-stopped`, so the
+whole stack comes back by itself after a Docker Desktop restart or a reboot.
+
+**Anything unexplained:** `docker compose logs <service> --tail 50`. The last
+line of a failed startup names the dependency that was unreachable.
+
 <details>
 <summary>The whole scenario with curl</summary>
 
@@ -956,10 +969,18 @@ mcw_chain_rpc_calls_total{method,outcome}
 / `failed` / `dead_lettered`, which makes "are we actually deduplicating?" a
 dashboard question rather than a log-grep.
 
-**Health checks.** `/health/live` (process up) and `/health` (dependency
-readiness: database, Redis, and the chain node or the downstream service).
-Returns `503` when degraded, so an orchestrator can act on it. Wired into
-Docker Compose health checks.
+**Health checks.** Two endpoints with different jobs:
+
+* `/health/live` -- **liveness**: the process is running. Restarting on a
+  liveness failure is the right response.
+* `/health` -- **readiness**: database, Redis, and the chain node or downstream
+  service are all reachable. Returns `503` when degraded.
+
+Docker Compose health checks use `/health`, so `docker compose ps` reports
+whether a service can actually serve traffic rather than merely that its process
+exists -- a container that has lost its database reads as `unhealthy`, which is
+what you want when diagnosing. In Kubernetes these map to `livenessProbe` and
+`readinessProbe` respectively.
 
 ---
 
