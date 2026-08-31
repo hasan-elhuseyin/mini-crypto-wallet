@@ -7,11 +7,11 @@ import time
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi import APIRouter, FastAPI, Request, Response, Security
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.status import HTTP_401_UNAUTHORIZED
 
 from .correlation import CORRELATION_HEADER, correlation_id_var, new_correlation_id
 from .errors import AppError, UnauthorizedError
@@ -21,7 +21,7 @@ from .metrics import CONTENT_TYPE, HTTP_LATENCY, HTTP_REQUESTS, render_metrics
 __all__ = [
     "CorrelationMiddleware",
     "install_error_handlers",
-    "ApiKeyAuth",
+    "api_key_auth",
     "build_ops_router",
     "problem",
 ]
@@ -137,35 +137,50 @@ def install_error_handlers(app: FastAPI) -> None:
         )
 
 
-class ApiKeyAuth:
-    """Header based authentication stand-in.
+def api_key_auth(
+    *,
+    keys: Sequence[str],
+    header: str = "X-API-Key",
+    enabled: bool = True,
+    description: str | None = None,
+):
+    """Build a FastAPI dependency that authenticates with an API key header.
 
-    Deliberately simple: a real deployment puts OAuth2/JWT (or mTLS between
-    services) in front of this. What matters for the case is that the *shape*
-    is right -- every mutating endpoint is authenticated, credentials are
-    compared in constant time, and they never reach the logs.
+    Returned as a closure rather than a callable object on purpose: FastAPI
+    inspects the dependency's *signature*, and it is the ``Security(...)``
+    marker below that registers the scheme in the OpenAPI document -- which is
+    what makes the **Authorize** button appear in the Swagger UI. A plain
+    ``__call__`` that reads the header off the request works at runtime but
+    documents nothing, leaving the interactive docs unusable.
+
+    Deliberately simple otherwise: a real deployment puts OAuth2/JWT (or mTLS
+    between services) in front of this. What matters here is that the shape is
+    right -- every endpoint is authenticated, credentials are compared in
+    constant time, and they never reach the logs.
     """
+    valid_keys = [key for key in keys if key]
+    scheme = APIKeyHeader(
+        name=header,
+        auto_error=False,  # we raise our own problem+json instead of FastAPI's
+        scheme_name=header,
+        description=description or f"API key sent in the `{header}` header.",
+    )
 
-    def __init__(
-        self, *, keys: Sequence[str], header: str = "X-API-Key", enabled: bool = True
-    ) -> None:
-        self._keys = [k for k in keys if k]
-        self._header = header
-        self._enabled = enabled
-
-    async def __call__(self, request: Request) -> str | None:
-        if not self._enabled:
+    async def authenticate(
+        request: Request, presented: str | None = Security(scheme)
+    ) -> str:
+        if not enabled:
             return "auth-disabled"
-        presented = request.headers.get(self._header)
         if not presented:
+            # Also accept `Authorization: Bearer <key>` for clients that prefer it.
             authorization = request.headers.get("Authorization", "")
             if authorization.lower().startswith("bearer "):
                 presented = authorization[7:]
-        if not presented or not any(hmac.compare_digest(presented, k) for k in self._keys):
-            raise UnauthorizedError(
-                f"A valid {self._header} header is required.", status=HTTP_401_UNAUTHORIZED
-            )
+        if not presented or not any(hmac.compare_digest(presented, k) for k in valid_keys):
+            raise UnauthorizedError(f"A valid {header} header is required.")
         return "authenticated"
+
+    return authenticate
 
 
 def build_ops_router(

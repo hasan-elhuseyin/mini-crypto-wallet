@@ -63,9 +63,20 @@ make down      # stop    (make clean also drops the volumes)
 | blockchain-service API docs | <http://localhost:8001/docs> |
 | Health / metrics | `/health`, `/health/live`, `/metrics` on both |
 
-Every endpoint is authenticated. Use `X-API-Key: dev-api-key-change-me` for
-wallet-service and `X-Internal-Key: dev-internal-key-change-me` for
-blockchain-service (both configurable in `.env`).
+Every endpoint is authenticated:
+
+| Service | Header | Development value |
+|---|---|---|
+| wallet-service | `X-API-Key` | `dev-api-key-change-me` |
+| blockchain-service | `X-Internal-Key` | `dev-internal-key-change-me` |
+
+Both are set in `.env`. wallet-service also accepts
+`Authorization: Bearer <key>`.
+
+**Using the Swagger UI:** open `/docs`, click the green **Authorize** button at
+the top right, paste the key for that service and click *Authorize*, then
+*Close*. Every "Try it out" request from that page then carries the header.
+`/health` and `/metrics` need no key.
 
 ### Troubleshooting
 

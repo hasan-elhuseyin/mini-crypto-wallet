@@ -88,7 +88,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ]
             }
         },
         "/users/{user_id}": {
@@ -98,6 +103,11 @@
                 ],
                 "summary": "Fetch a user",
                 "operationId": "get_user_users__user_id__get",
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "user_id",
@@ -141,6 +151,11 @@
                 "summary": "Create the user's blockchain wallet",
                 "description": "Asks blockchain-service for a custody address and records it. Idempotent: calling it again returns the existing wallet with 200.",
                 "operationId": "create_wallet_users__user_id__wallet_post",
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "user_id",
@@ -191,6 +206,11 @@
                 ],
                 "summary": "Fetch the user's wallet",
                 "operationId": "get_wallet_users__user_id__wallet_get",
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "user_id",
@@ -266,6 +286,11 @@
                 "summary": "Current balance",
                 "description": "`available` = `posted` - `reserved`. Only `available` is spendable.",
                 "operationId": "get_balance_users__user_id__balance_get",
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "user_id",
@@ -352,7 +377,12 @@
                     "422": {
                         "description": "Validation failed."
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ]
             }
         },
         "/transfers/{transfer_id}": {
@@ -362,6 +392,11 @@
                 ],
                 "summary": "Transfer status",
                 "operationId": "get_transfer_transfers__transfer_id__get",
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "transfer_id",
@@ -405,6 +440,11 @@
                 "summary": "Ledger history",
                 "description": "Append-only ledger entries, newest first, plus any transfers that are still in flight.",
                 "operationId": "get_transactions_users__user_id__transactions_get",
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "user_id",
@@ -505,7 +545,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-API-Key": []
+                    }
+                ]
             }
         }
     },
@@ -1065,6 +1110,14 @@
                     "created_at"
                 ],
                 "title": "WalletResponse"
+            }
+        },
+        "securitySchemes": {
+            "X-API-Key": {
+                "type": "apiKey",
+                "description": "Client API key. Click **Authorize**, paste the key and every request from this page will carry it.\n\nDevelopment default: `dev-api-key-change-me` (set `API_KEY` in `.env`).",
+                "in": "header",
+                "name": "X-API-Key"
             }
         }
     },

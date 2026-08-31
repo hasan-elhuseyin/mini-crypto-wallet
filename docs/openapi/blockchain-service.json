@@ -89,7 +89,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         },
         "/addresses/{owner_ref}": {
@@ -99,6 +104,11 @@
                 ],
                 "summary": "Look up an owner's address",
                 "operationId": "get_address_addresses__owner_ref__get",
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "owner_ref",
@@ -141,6 +151,11 @@
                 ],
                 "summary": "Token balance as seen on chain",
                 "operationId": "onchain_balance_addresses__address__onchain_balance_get",
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "address",
@@ -183,6 +198,11 @@
                 ],
                 "summary": "List detected deposits",
                 "operationId": "list_deposits_deposits_get",
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "to_address",
@@ -264,6 +284,11 @@
                 ],
                 "summary": "On-chain state of a wallet transfer",
                 "operationId": "get_transaction_transactions__transfer_id__get",
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ],
                 "parameters": [
                     {
                         "name": "transfer_id",
@@ -317,7 +342,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         },
         "/simulate/deposits": {
@@ -358,7 +388,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         },
         "/simulate/mine": {
@@ -401,7 +436,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         },
         "/simulate/reorg": {
@@ -444,7 +484,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         },
         "/simulate/faults": {
@@ -487,7 +532,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         },
         "/simulate/tick": {
@@ -511,7 +561,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "X-Internal-Key": []
+                    }
+                ]
             }
         }
     },
@@ -1037,6 +1092,14 @@
                     "type"
                 ],
                 "title": "ValidationError"
+            }
+        },
+        "securitySchemes": {
+            "X-Internal-Key": {
+                "type": "apiKey",
+                "description": "Service-to-service key. Click **Authorize**, paste the key and every request from this page will carry it.\n\nDevelopment default: `dev-internal-key-change-me` (set `INTERNAL_API_KEY` in `.env`).",
+                "in": "header",
+                "name": "X-Internal-Key"
             }
         }
     },

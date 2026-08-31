@@ -6,8 +6,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from mcw_common.http import (
-    ApiKeyAuth,
     CorrelationMiddleware,
+    api_key_auth,
     build_ops_router,
     install_error_handlers,
 )
@@ -59,10 +59,16 @@ def create_app() -> FastAPI:
     app.add_middleware(CorrelationMiddleware, service=settings.service_name)
     install_error_handlers(app)
 
-    auth = ApiKeyAuth(
+    auth = api_key_auth(
         keys=[settings.internal_api_key],
         header="X-Internal-Key",
         enabled=settings.auth_enabled,
+        description=(
+            "Service-to-service key. Click **Authorize**, paste the key and every "
+            "request from this page will carry it.\n\n"
+            "Development default: `dev-internal-key-change-me` "
+            "(set `INTERNAL_API_KEY` in `.env`)."
+        ),
     )
 
     app.include_router(
